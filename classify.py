@@ -43,10 +43,8 @@ def classify_image(image_path, model, target_size=(128, 128)):
     return prediction[0], confidence_scores
 
 # Load dataset
-# male_image_paths = glob.glob('./data_train/male/*.[jp][pn]g')[:100]
-# female_image_paths = glob.glob('./data_train/female/*.[jp][pn]g')[:100]
-male_image_paths = glob.glob('./Training/male/*.[jp][pn]g')[:100]
-female_image_paths = glob.glob('./Training/female/*.[jp][pn]g')[:100]
+male_image_paths = glob.glob('./Validation/male/*.[jp][pn]g')[:100]
+female_image_paths = glob.glob('./Validation/female/*.[jp][pn]g')[:100]
 image_paths = male_image_paths + female_image_paths
 labels = ['male'] * len(male_image_paths) + ['female'] * len(female_image_paths)
 

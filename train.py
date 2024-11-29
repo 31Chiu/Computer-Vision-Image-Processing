@@ -29,8 +29,8 @@ def load_images_and_labels(data_dir, target_size=(128, 128)):
     return np.array(features), np.array(labels)
 
 # Load dataset
-# data_dir = './data_train/'
 data_dir = './Training/'
+# data_dir = './Temp_Training/'
 features, labels = load_images_and_labels(data_dir)
 
 # Split dataset into training and testing sets
@@ -41,7 +41,7 @@ model = svm.SVC(probability=True)
 model.fit(X_train, y_train)
 
 # Save the trained model
-joblib.dump(model, 'gender_classification_svm.pkl')
+joblib.dump(model, 'train_gender_classification_svm.pkl')
 
 # Evaluate the model
 y_pred = model.predict(X_test)
