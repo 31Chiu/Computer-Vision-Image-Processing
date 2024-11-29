@@ -1,78 +1,76 @@
-import torch
-import torch.nn as nn
-from torchvision import models, transforms
-from torch.utils.data import DataLoader
-from torchvision.datasets import ImageFolder
+import cv2
+import numpy as np
+import os
+from skimage import feature
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
-from PIL import Image
-import os
+import joblib
 
+# Paths
 current_directory = os.getcwd()
-image_folder_path = current_directory + "/test_data"
-trained_model_path = "best.pt"
+image_folder_path = os.path.join(current_directory, "Validation")
+trained_model_path = "gender_classification_svm.pkl"
 class_file_path = "classes.txt"
 
+# Load class names
 with open(class_file_path, "r") as file:
-    rows = file.readlines()
+    class_names = [row.strip() for row in file.readlines()]
 
-class_names = [row.strip() for row in rows]
+def extract_hog_features(image):
+    """Extract HOG features from an image."""
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    hog_features = feature.hog(gray_image, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=False)
+    return hog_features
 
-# print(class_names)                                # To test whether the class names are read correctly
+def load_images_and_labels(data_dir, target_size=(128, 128)):
+    """Load images and labels from a directory, resize images, and extract HOG features."""
+    features = []
+    labels = []
+    for label in os.listdir(data_dir):
+        label_dir = os.path.join(data_dir, label)
+        if os.path.isdir(label_dir):
+            for image_name in os.listdir(label_dir):
+                image_path = os.path.join(label_dir, image_name)
+                image = cv2.imread(image_path)
+                if image is not None:
+                    image = cv2.resize(image, target_size)
+                    hog_features = extract_hog_features(image)
+                    features.append(hog_features)
+                    labels.append(label)
+    return np.array(features), np.array(labels)
 
-num_classes = len(class_names)
+def main():
+    try:
+        # Load dataset
+        features, labels = load_images_and_labels(image_folder_path)
 
-class TransferLearningCNN(nn.Module):
-    def __init__(self, num_classes):
-        super(TransferLearningCNN, self).__init__()
-        self.resnet = models.resnet18()
-        in_features = self.resnet.fc.in_features
-        self.resnet.fc = nn.Linear(in_features, num_classes)
+        # Load the trained SVC model
+        svc_model = joblib.load(trained_model_path)
 
-    def forward(self, x):
-        return self.resnet(x)
-    
-model = TransferLearningCNN(num_classes)
-model.load_state_dict(torch.load(trained_model_path))
-model.eval()
+        # Make predictions
+        predictions = svc_model.predict(features)
 
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-])
+        # Compute the confusion matrix
+        conf_matrix = confusion_matrix(labels, predictions)
 
-testing_set = ImageFolder(image_folder_path, transform=transform)
-testing_loader = DataLoader(testing_set, batch_size=64, shuffle=False)
+        # Plot the confusion matrix
+        plt.figure(figsize=(8, 5))
+        sns.heatmap(
+            conf_matrix.T, 
+            annot=True, 
+            fmt="d", 
+            cmap="Blues", 
+            xticklabels=class_names, 
+            yticklabels=class_names
+        )
+        plt.xlabel("True")
+        plt.ylabel("Predicted")
+        plt.title("Confusion Matrix For Gender Classification Model")
+        plt.show()
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model.to(device)
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
-all_labels = []                                         # Used to store all the ground truth labels
-all_predictions = []                                    # Used to store all the model's predictions or outputs
-
-with torch.no_grad():
-    for inputs, labels in testing_loader:
-        inputs, labels = inputs.to(device), labels.to(device)
-        outputs = model(inputs)                         # Feedforward
-        _, predicted = torch.max(outputs, 1)
-
-        all_labels.extend(labels.cpu().numpy())
-        all_predictions.extend(predicted.cpu().numpy())
-
-# Now we have the confusion matrix here:
-conf_matrix = confusion_matrix(all_labels, all_predictions)
-
-plt.figure(figsize=(num_classes, num_classes))
-sns.heatmap(
-    conf_matrix.T, 
-    annot=True, 
-    fmt="d", 
-    cmap="Blues", 
-    xticklabels=class_names, 
-    yticklabels=class_names
-)
-plt.xlabel("True")
-plt.ylabel("Predicted")
-plt.title("Confusion Matrix")
-plt.show()
+if __name__ == "__main__":
+    main()
