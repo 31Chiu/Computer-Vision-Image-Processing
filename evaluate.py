@@ -88,8 +88,10 @@ def main():
             xticklabels=class_names, 
             yticklabels=class_names
         )
-        plt.xlabel("True")
-        plt.ylabel("Predicted")
+        # plt.xlabel("True")
+        # plt.ylabel("Predicted")
+        plt.xlabel("Predicted")
+        plt.ylabel("True")
         plt.title("Confusion Matrix For Gender Classification Model")
         plt.show()
 
